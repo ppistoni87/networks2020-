@@ -50,3 +50,6 @@ output/*
 
 # Ignore python execution files
 **/__pycache__
+
+# Local environment variables (may contain sensitive paths)
+.env
