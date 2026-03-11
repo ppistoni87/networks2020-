@@ -102,31 +102,100 @@ fi
 # 4. Install Boost Graph Library
 # ---------------------------------------------------------------------------
 info "Checking Boost Graph Library..."
-if [[ -f /usr/include/boost/graph/adjacency_list.hpp ]]; then
-    success "Boost Graph Library found at /usr/include/boost."
+
+# Helper: detect Boost from a known include root.
+detect_boost() {
+    local inc="$1"
+    if [[ -f "${inc}/boost/graph/adjacency_list.hpp" ]]; then
+        BOOST_INCLUDE_DETECTED="$inc"
+        # Look for static lib alongside the include root.
+        local lib_base
+        lib_base="$(dirname "$inc")/lib"
+        BOOST_BIN_DETECTED=$(find "$lib_base" /usr/lib -name "libboost_graph.a" 2>/dev/null | head -1)
+        [[ -z "$BOOST_BIN_DETECTED" ]] && \
+            BOOST_BIN_DETECTED=$(find "$lib_base" /usr/lib -name "libboost_graph.so" 2>/dev/null | head -1)
+        return 0
+    fi
+    return 1
+}
+
+BOOST_INCLUDE_DETECTED=""
+BOOST_BIN_DETECTED=""
+
+if detect_boost "/usr/include"; then
+    success "Boost Graph Library found at /usr/include."
 else
-    warn "Boost Graph Library not found. Attempting to install..."
-    if command -v apt-get &>/dev/null; then
-        sudo apt-get update -qq && sudo apt-get install -y libboost-all-dev
-        success "Boost libraries installed."
+    # Try Conan cache (populated by a previous 'conan install --requires=boost/...')
+    CONAN_BOOST_INC=$(find "${HOME}/.conan2/p" -path "*/include/boost/graph/adjacency_list.hpp" \
+                      2>/dev/null | head -1 | sed 's|/boost/graph/adjacency_list.hpp||')
+    if [[ -n "$CONAN_BOOST_INC" ]] && detect_boost "$CONAN_BOOST_INC"; then
+        success "Boost Graph Library found in Conan cache."
     else
-        error "Boost Graph Library not found and automatic installation is not supported."
-        error "Please install Boost >= 1.66: https://www.boost.org/"
-        exit 1
+        warn "Boost Graph Library not found. Attempting to install via apt..."
+        APT_OK=false
+        if command -v apt-get &>/dev/null; then
+            if sudo apt-get update -qq 2>/dev/null && sudo apt-get install -y libboost-all-dev 2>/dev/null; then
+                APT_OK=true
+                detect_boost "/usr/include" || true
+                success "Boost libraries installed via apt."
+            fi
+        fi
+
+        if [[ "$APT_OK" = false ]]; then
+            warn "apt installation failed (likely no network). Trying Conan..."
+            if command -v conan &>/dev/null; then
+                # Ensure a default profile exists.
+                conan profile detect --force &>/dev/null || true
+                CONAN_OUT="/tmp/boost_conan_install"
+                mkdir -p "$CONAN_OUT"
+                if conan install --requires="boost/1.83.0" \
+                        --options "boost/*:without_graph=False" \
+                        --build=missing \
+                        --output-folder="$CONAN_OUT" 2>/dev/null; then
+                    CONAN_BOOST_INC=$(find "${HOME}/.conan2/p" \
+                        -path "*/include/boost/graph/adjacency_list.hpp" 2>/dev/null \
+                        | head -1 | sed 's|/boost/graph/adjacency_list.hpp||')
+                    if [[ -n "$CONAN_BOOST_INC" ]] && detect_boost "$CONAN_BOOST_INC"; then
+                        success "Boost Graph Library installed via Conan."
+                    else
+                        warn "Conan install succeeded but could not locate headers."
+                    fi
+                else
+                    warn "Conan installation also failed."
+                fi
+            else
+                warn "Conan not available. Installing conan via pip..."
+                if pip3 install --quiet conan 2>/dev/null; then
+                    conan profile detect --force &>/dev/null || true
+                    CONAN_OUT="/tmp/boost_conan_install"
+                    mkdir -p "$CONAN_OUT"
+                    if conan install --requires="boost/1.83.0" \
+                            --options "boost/*:without_graph=False" \
+                            --build=missing \
+                            --output-folder="$CONAN_OUT" 2>/dev/null; then
+                        CONAN_BOOST_INC=$(find "${HOME}/.conan2/p" \
+                            -path "*/include/boost/graph/adjacency_list.hpp" 2>/dev/null \
+                            | head -1 | sed 's|/boost/graph/adjacency_list.hpp||')
+                        if [[ -n "$CONAN_BOOST_INC" ]] && detect_boost "$CONAN_BOOST_INC"; then
+                            success "Boost Graph Library installed via Conan."
+                        fi
+                    fi
+                fi
+            fi
+        fi
+
+        if [[ -z "$BOOST_INCLUDE_DETECTED" ]]; then
+            error "Could not install Boost Graph Library automatically."
+            error "Please install it manually (https://www.boost.org/) and re-run this script."
+            exit 1
+        fi
     fi
 fi
 
-BOOST_INCLUDE_DETECTED="/usr/include"
-BOOST_BIN_DETECTED=$(find /usr/lib -name "libboost_graph.a" 2>/dev/null | head -1)
-if [[ -z "$BOOST_BIN_DETECTED" ]]; then
-    # Fallback: try shared library path for linking
-    BOOST_BIN_DETECTED=$(find /usr/lib -name "libboost_graph.so" 2>/dev/null | head -1)
-fi
-
 if [[ -n "$BOOST_BIN_DETECTED" ]]; then
-    success "Boost library detected: $BOOST_BIN_DETECTED"
+    success "Boost library: $BOOST_BIN_DETECTED"
 else
-    warn "Could not auto-detect Boost library binary. You may need to set BOOST_BIN manually."
+    warn "Could not auto-detect libboost_graph binary. You may need to set BOOST_BIN manually."
 fi
 
 # ---------------------------------------------------------------------------

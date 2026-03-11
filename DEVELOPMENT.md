@@ -9,7 +9,7 @@ This guide explains how to set up and run the networks2020 project on your local
 | Python | >= 3.6 | [python.org](https://www.python.org/) |
 | CMake | >= 2.8.4 | `sudo apt-get install cmake` |
 | g++ / C++14 | >= 5.0 | `sudo apt-get install build-essential` |
-| Boost Graph Library | >= 1.66 | `sudo apt-get install libboost-all-dev` |
+| Boost Graph Library | >= 1.66 | `sudo apt-get install libboost-all-dev` or via Conan (see below) |
 | IBM CPLEX | >= 12.8 | [ibm.com/products/ilog-cplex-optimization-studio](https://www.ibm.com/products/ilog-cplex-optimization-studio) |
 
 > **Note:** CPLEX is a commercial product. IBM offers a free Community Edition with limited problem sizes.
@@ -23,6 +23,9 @@ Run the setup script from the repository root:
 ```bash
 bash setup_dev.sh
 ```
+
+The script installs Boost automatically via `apt` when available, or falls back to
+**[Conan](https://conan.io/)** (installed via `pip3 install conan` if needed).
 
 If you already have CPLEX installed, pass the paths directly:
 
@@ -49,6 +52,16 @@ The script will:
 sudo apt-get update
 sudo apt-get install -y cmake build-essential libboost-all-dev
 ```
+
+If `apt` is not available or has no network access, install Boost via Conan:
+
+```bash
+pip3 install conan
+conan profile detect
+conan install --requires="boost/1.83.0" --options "boost/*:without_graph=False" --build=missing
+```
+
+The setup script does this automatically as a fallback.
 
 ### 2. Install CPLEX
 
