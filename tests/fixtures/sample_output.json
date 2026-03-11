@@ -1,0 +1,30 @@
+{
+  "date": "2026-03-11",
+  "experiment_file": "sample",
+  "time": 1.234,
+  "outputs": [
+    {
+      "dataset_name": "networks_2019b",
+      "instance_name": "C203_25_a",
+      "experiment_name": "Basic",
+      "exit_code": 0,
+      "stderr": "",
+      "time": 1.234,
+      "stdout": {
+        "Exact": {
+          "status": "Optimum"
+        },
+        "Best solution": {
+          "value": -62.686817103594876,
+          "routes": [
+            {
+              "path": [0, 20, 24, 23, 5, 2, 1, 16, 14, 15, 19, 13, 25, 11, 10, 8, 26],
+              "t0": 15771.536509518937,
+              "duration": 14817.806182896406
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

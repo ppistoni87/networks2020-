@@ -134,6 +134,13 @@ Validate solution correctness with:
 python3 checker/checker.py output/<output_file.json>
 ```
 
+A sample output file is included to verify the checker works without needing the compiled solver:
+
+```bash
+python3 checker/checker.py tests/fixtures/sample_output.json
+# Expected: ok: 1  wrong: 0  suboptimal: 0  ...
+```
+
 ---
 
 ## Visualizing results
